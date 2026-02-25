@@ -44,6 +44,23 @@
 
 <div id="container">
   <div id="left">
+    <h3>Turn</h3>
+    
+    <!-- スコア -->
+    <div id="score-box" style="margin-bottom: 6px; font-size: 18px; color: blue;">
+      Score: 0 (+0)
+    </div>
+
+    <!-- ▼ スライダー -->
+    <input id="turn-slider" type="range" min="0" max="0" value="0" />
+    <span id="turn-label">Turn: 0</span>
+
+    <!-- ▼ ▲▼ ボタン -->
+    <div class="turn-controls">
+      <button id="prev-btn" class="turn-btn">▼</button>
+      <button id="next-btn" class="turn-btn">▲</button>
+    </div>
+
     <h3>Input</h3>
     <textarea id="input-text" rows="10">
 3
@@ -56,18 +73,6 @@
     <textarea id="output-text" rows="10">2 0 1</textarea>
 
     <button id="visualize-btn">Visualize</button>
-
-    <h3>Turn</h3>
-
-    <!-- ▼ スライダー -->
-    <input id="turn-slider" type="range" min="0" max="0" value="0" />
-    <span id="turn-label">Turn: 0</span>
-
-    <!-- ▼ ▲▼ ボタン -->
-    <div class="turn-controls">
-      <button id="prev-btn" class="turn-btn">▼</button>
-      <button id="next-btn" class="turn-btn">▲</button>
-    </div>
   </div>
 
   <div id="canvas-wrapper">
@@ -107,9 +112,28 @@ function parseOutput(text, input) {
 // ==============================
 function buildStates(input, output) {
   const states = [];
-  for (let t = 0; t < output.order.length; t++) {
-    const partialOrder = output.order.slice(0, t + 1);
-    states.push({ t, order: partialOrder });
+  const pts = input.points;
+  const ord = output.order;
+
+  let score = 0;
+
+  for (let t = 0; t < ord.length; t++) {
+    const partialOrder = ord.slice(0, t + 1);
+
+    let lastDist = 0;
+    if (t > 0) {
+      const a = pts[ord[t - 1]];
+      const b = pts[ord[t]];
+      lastDist = Math.hypot(a.x - b.x, a.y - b.y);
+      score += lastDist;
+    }
+
+    states.push({
+      t,
+      order: partialOrder,
+      score,
+      lastDist,
+    });
   }
   return states;
 }
@@ -161,6 +185,7 @@ function drawTurn(input, state) {
       ctx.lineTo(pts[ord[i]].x * scale, pts[ord[i]].y * scale);  // 次の点まで線を描く
     }
   }
+
   ctx.stroke();  // 描写
 }
 
@@ -170,6 +195,7 @@ function drawTurn(input, state) {
 function setupSlider(states, input) {
   const slider = document.getElementById("turn-slider");
   const label = document.getElementById("turn-label");
+  const scoreBox = document.getElementById("score-box");
   const prevBtn = document.getElementById("prev-btn");
   const nextBtn = document.getElementById("next-btn");
 
@@ -180,7 +206,12 @@ function setupSlider(states, input) {
   function updateTurn(t) {
     slider.value = t;
     label.textContent = "Turn: " + t;
-    drawTurn(input, states[t]);
+
+    const st = states[t];
+    scoreBox.textContent =
+      `Score: ${st.score.toFixed(2)} (+${st.lastDist.toFixed(2)})`;
+
+    drawTurn(input, st);
   }
 
   slider.oninput = () => {
