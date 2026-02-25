@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>AHC IO Visualizer</title>
+<style>
+  body {
+    font-family: sans-serif;
+    margin: 20px;
+  }
+  textarea {
+    width: 100%;
+    font-family: monospace;
+  }
+  #container {
+    display: flex;
+    gap: 20px;
+  }
+  #left {
+    width: 350px;
+  }
+  #canvas-wrapper {
+    flex-grow: 1;
+  }
+  canvas {
+    border: 1px solid #333;
+  }
+</style>
+</head>
+<body>
+
+<h1>AHC IO Visualizer (Standalone)</h1>
+
+<div id="container">
+  <div id="left">
+    <h3>Input</h3>
+    <textarea id="input-text" rows="10"></textarea>
+
+    <h3>Output</h3>
+    <textarea id="output-text" rows="10"></textarea>
+
+    <button id="visualize-btn">Visualize</button>
+  </div>
+
+  <div id="canvas-wrapper">
+    <canvas id="canvas" width="600" height="600"></canvas>
+  </div>
+</div>
+
+<script>
+// ==============================
+// 1. Input パース（例）
+// ==============================
+function parseInput(text) {
+  // 例: 最初の行に N、その後 N 個の点 (x, y)
+  const it = text.trim().split(/\s+/).map(Number);
+  let idx = 0;
+
+  const N = it[idx++];
+
+  const points = [];
+  for (let i = 0; i < N; i++) {
+    const x = it[idx++];
+    const y = it[idx++];
+    points.push({ x, y });
+  }
+
+  return { N, points };
+}
+
+// ==============================
+// 2. Output パース（例）
+// ==============================
+function parseOutput(text, input) {
+  // 例: 出力は N 個の点の順番（0-index）
+  const order = text.trim().split(/\s+/).map(Number);
+  return { order };
+}
+
+// ==============================
+// 3. 描画処理（例）
+// ==============================
+function draw(input, output) {
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 座標をそのまま使うと見えないことがあるのでスケール
+  const scale = 5;
+
+  // 点を描画
+  ctx.fillStyle = "black";
+  for (const p of input.points) {
+    ctx.beginPath();
+    ctx.arc(p.x * scale, p.y * scale, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 経路を描画（例）
+  ctx.strokeStyle = "red";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  const pts = input.points;
+  const ord = output.order;
+
+  if (ord.length > 0) {
+    ctx.moveTo(pts[ord[0]].x * scale, pts[ord[0]].y * scale);
+    for (let i = 1; i < ord.length; i++) {
+      ctx.lineTo(pts[ord[i]].x * scale, pts[ord[i]].y * scale);
+    }
+  }
+  ctx.stroke();
+}
+
+// ==============================
+// 4. ボタン動作
+// ==============================
+document.getElementById("visualize-btn").addEventListener("click", () => {
+  const inputText = document.getElementById("input-text").value;
+  const outputText = document.getElementById("output-text").value;
+
+  if (!inputText || !outputText) {
+    alert("Input と Output を両方貼り付けてください");
+    return;
+  }
+
+  try {
+    const input = parseInput(inputText);
+    const output = parseOutput(outputText, input);
+    draw(input, output);
+  } catch (e) {
+    console.error(e);
+    alert("パースに失敗しました。フォーマットを確認してください。");
+  }
+});
+</script>
+
+</body>
+</html>
