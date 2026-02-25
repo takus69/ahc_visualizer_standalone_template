@@ -25,6 +25,17 @@
   canvas {
     border: 1px solid #333;
   }
+  .turn-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  button.turn-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+  }
 </style>
 </head>
 <body>
@@ -34,16 +45,29 @@
 <div id="container">
   <div id="left">
     <h3>Input</h3>
-    <textarea id="input-text" rows="10"></textarea>
+    <textarea id="input-text" rows="10">
+3
+20 30
+50 100
+90 80
+    </textarea>
 
     <h3>Output</h3>
-    <textarea id="output-text" rows="10"></textarea>
+    <textarea id="output-text" rows="10">2 0 1</textarea>
 
     <button id="visualize-btn">Visualize</button>
 
     <h3>Turn</h3>
+
+    <!-- ▼ スライダー -->
     <input id="turn-slider" type="range" min="0" max="0" value="0" />
     <span id="turn-label">Turn: 0</span>
+
+    <!-- ▼ ▲▼ ボタン -->
+    <div class="turn-controls">
+      <button id="prev-btn" class="turn-btn">▼</button>
+      <button id="next-btn" class="turn-btn">▲</button>
+    </div>
   </div>
 
   <div id="canvas-wrapper">
@@ -53,21 +77,13 @@
 
 <script>
 // ==============================
-/*
 // 1. Input パース（例）
-3
-20 30
-50 120
-120 80
-*/
 // ==============================
 function parseInput(text) {
-  // 例: 最初の行に N、その後 N 個の点 (x, y)
   const it = text.trim().split(/\s+/).map(Number);
   let idx = 0;
 
   const N = it[idx++];
-
   const points = [];
   for (let i = 0; i < N; i++) {
     const x = it[idx++];
@@ -80,12 +96,8 @@ function parseInput(text) {
 
 // ==============================
 // 2. Output パース（例）
-/*
-2 0 1
-*/
 // ==============================
 function parseOutput(text, input) {
-  // 例: 出力は N 個の点の順番（0-index）
   const order = text.trim().split(/\s+/).map(Number);
   return { order };
 }
@@ -95,15 +107,10 @@ function parseOutput(text, input) {
 // ==============================
 function buildStates(input, output) {
   const states = [];
-
   for (let t = 0; t < output.order.length; t++) {
     const partialOrder = output.order.slice(0, t + 1);
-    states.push({
-      t,
-      order: partialOrder
-    });
+    states.push({ t, order: partialOrder });
   }
-
   return states;
 }
 
@@ -117,13 +124,27 @@ function drawTurn(input, state) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const scale = 5;
+  const radius = 12;
 
   // 点
   ctx.fillStyle = "black";
-  for (const p of input.points) {
+  for (let i = 0; i < input.points.length; i++) {
+    const p = input.points[i];
+    const cx = p.x * scale;
+    const cy = p.y * scale;
+
+    // 円
     ctx.beginPath();
-    ctx.arc(p.x * scale, p.y * scale, 4, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = "black";
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);  // 円弧を描く
+    ctx.fill();  // 中を塗りつぶす
+    
+    // テキスト
+    ctx.fillStyle = "white";
+    ctx.font = "14px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(i.toString(), cx, cy);
   }
 
   // 経路
@@ -135,33 +156,49 @@ function drawTurn(input, state) {
   const ord = state.order;
 
   if (ord.length > 0) {
-    ctx.moveTo(pts[ord[0]].x * scale, pts[ord[0]].y * scale);
+    ctx.moveTo(pts[ord[0]].x * scale, pts[ord[0]].y * scale);  // ペンを移動
     for (let i = 1; i < ord.length; i++) {
-      ctx.lineTo(pts[ord[i]].x * scale, pts[ord[i]].y * scale);
+      ctx.lineTo(pts[ord[i]].x * scale, pts[ord[i]].y * scale);  // 次の点まで線を描く
     }
   }
-  ctx.stroke();
+  ctx.stroke();  // 描写
 }
 
 // ==============================
-// 5. スライダー設定
+// 5. スライダー + ▲▼ ボタン設定
 // ==============================
 function setupSlider(states, input) {
   const slider = document.getElementById("turn-slider");
   const label = document.getElementById("turn-label");
+  const prevBtn = document.getElementById("prev-btn");
+  const nextBtn = document.getElementById("next-btn");
 
   slider.min = 0;
   slider.max = states.length - 1;
   slider.value = 0;
 
-  slider.oninput = () => {
-    const t = Number(slider.value);
+  function updateTurn(t) {
+    slider.value = t;
     label.textContent = "Turn: " + t;
     drawTurn(input, states[t]);
+  }
+
+  slider.oninput = () => {
+    updateTurn(Number(slider.value));
+  };
+
+  prevBtn.onclick = () => {
+    let t = Number(slider.value);
+    if (t > 0) updateTurn(t - 1);
+  };
+
+  nextBtn.onclick = () => {
+    let t = Number(slider.value);
+    if (t < states.length - 1) updateTurn(t + 1);
   };
 
   // 初期描画
-  drawTurn(input, states[0]);
+  updateTurn(0);
 }
 
 // ==============================
