@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8" />
-<title>AHC IO Visualizer</title>
+<title>AHC IO Visualizer (Standalone)</title>
 <style>
   body {
     font-family: sans-serif;
@@ -40,6 +40,10 @@
     <textarea id="output-text" rows="10"></textarea>
 
     <button id="visualize-btn">Visualize</button>
+
+    <h3>Turn</h3>
+    <input id="turn-slider" type="range" min="0" max="0" value="0" />
+    <span id="turn-label">Turn: 0</span>
   </div>
 
   <div id="canvas-wrapper">
@@ -49,7 +53,13 @@
 
 <script>
 // ==============================
+/*
 // 1. Input パース（例）
+3
+20 30
+50 120
+120 80
+*/
 // ==============================
 function parseInput(text) {
   // 例: 最初の行に N、その後 N 個の点 (x, y)
@@ -70,6 +80,9 @@ function parseInput(text) {
 
 // ==============================
 // 2. Output パース（例）
+/*
+2 0 1
+*/
 // ==============================
 function parseOutput(text, input) {
   // 例: 出力は N 個の点の順番（0-index）
@@ -78,18 +91,34 @@ function parseOutput(text, input) {
 }
 
 // ==============================
-// 3. 描画処理（例）
+// 3. ターンごとの状態を構築
 // ==============================
-function draw(input, output) {
+function buildStates(input, output) {
+  const states = [];
+
+  for (let t = 0; t < output.order.length; t++) {
+    const partialOrder = output.order.slice(0, t + 1);
+    states.push({
+      t,
+      order: partialOrder
+    });
+  }
+
+  return states;
+}
+
+// ==============================
+// 4. ターン描画
+// ==============================
+function drawTurn(input, state) {
   const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d");
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // 座標をそのまま使うと見えないことがあるのでスケール
   const scale = 5;
 
-  // 点を描画
+  // 点
   ctx.fillStyle = "black";
   for (const p of input.points) {
     ctx.beginPath();
@@ -97,12 +126,13 @@ function draw(input, output) {
     ctx.fill();
   }
 
-  // 経路を描画（例）
+  // 経路
   ctx.strokeStyle = "red";
   ctx.lineWidth = 2;
   ctx.beginPath();
+
   const pts = input.points;
-  const ord = output.order;
+  const ord = state.order;
 
   if (ord.length > 0) {
     ctx.moveTo(pts[ord[0]].x * scale, pts[ord[0]].y * scale);
@@ -114,7 +144,28 @@ function draw(input, output) {
 }
 
 // ==============================
-// 4. ボタン動作
+// 5. スライダー設定
+// ==============================
+function setupSlider(states, input) {
+  const slider = document.getElementById("turn-slider");
+  const label = document.getElementById("turn-label");
+
+  slider.min = 0;
+  slider.max = states.length - 1;
+  slider.value = 0;
+
+  slider.oninput = () => {
+    const t = Number(slider.value);
+    label.textContent = "Turn: " + t;
+    drawTurn(input, states[t]);
+  };
+
+  // 初期描画
+  drawTurn(input, states[0]);
+}
+
+// ==============================
+// 6. Visualize ボタン
 // ==============================
 document.getElementById("visualize-btn").addEventListener("click", () => {
   const inputText = document.getElementById("input-text").value;
@@ -128,7 +179,10 @@ document.getElementById("visualize-btn").addEventListener("click", () => {
   try {
     const input = parseInput(inputText);
     const output = parseOutput(outputText, input);
-    draw(input, output);
+
+    const states = buildStates(input, output);
+    setupSlider(states, input);
+
   } catch (e) {
     console.error(e);
     alert("パースに失敗しました。フォーマットを確認してください。");
